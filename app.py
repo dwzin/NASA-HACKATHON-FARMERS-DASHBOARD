@@ -72,6 +72,7 @@ def landing_page():
         Our tool provides key insights on temperature, humidity, solar radiation, and more,
         enabling better decision-making for your crops and land.
     """)
+
     if st.button("Go to Dashboard"):
         # Atualiza o estado para o dashboard
         st.session_state['page'] = 'dashboard'
