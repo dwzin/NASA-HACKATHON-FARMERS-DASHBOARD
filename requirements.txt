@@ -4,3 +4,4 @@ matplotlib
 streamlit
 streamlit-folium
 geopy
+streamlit-cookies-controller
