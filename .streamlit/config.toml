@@ -1,0 +1,22 @@
+# Basic configuration for Streamlit
+[server]
+headless = true
+port = 8501
+enableCORS = false
+enableXsrfProtection = false
+
+# Theme customization
+[theme]
+primaryColor="#5ef75e"
+backgroundColor="#000000"
+secondaryBackgroundColor="#a2a6b7"
+textColor="#ffffff"
+font="monospace"
+
+# Set the browser to automatically open the app
+[server]
+open_browser = true
+
+# File Watcher to enable hot reloading
+[fileWatcher]
+watchdog = true
