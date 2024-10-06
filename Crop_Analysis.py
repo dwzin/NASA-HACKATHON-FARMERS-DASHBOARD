@@ -5,89 +5,35 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from geopy.geocoders import Nominatim
 from datetime import datetime, timedelta
+from db import *
+import re
 
-# Função para conectar ao banco de dados SQLite
-def create_connection():
-    conn = sqlite3.connect('crop_management.db')
-    return conn
-
-# Função para criar a tabela de culturas
-def create_table():
-    conn = create_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS crops (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            plant_date DATE NOT NULL,
-            harvest_date DATE NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Função para registrar uma nova cultura
-def register_crop(name, plant_date, harvest_date):
-    conn = create_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO crops (name, plant_date, harvest_date)
-        VALUES (?, ?, ?)
-    ''', (name, plant_date, harvest_date))
-    conn.commit()
-    conn.close()
-
-# Função para obter todas as culturas registradas
-def get_crops():
-    conn = create_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM crops')
-    crops = cursor.fetchall()
-    conn.close()
-    return crops
-
-# Cria a tabela no banco de dados
 create_table()
+growing_seasons = {
+        "Beans": (3, 9),   # March to September
+        "Corn": (4, 8),    # April to August
+        "Wheat": (9, 6),   # September to June (overlapping year)
+        "Rice": (1, 4),    # January to April
+        "Soybeans": (5, 9),# May to September
+        "Potatoes": (3, 6),# March to June
+        "Tomatoes": (5, 10),# May to October
+        "Cabbage": (2, 5), # February to May
+        "Carrots": (3, 7), # March to July
+        "Pumpkins": (6, 10),# June to October
+        "Lettuce": (3, 7), # March to July
+        "Peas": (2, 6),    # February to June
+        "Radishes": (4, 6),# April to June
+        "Bell Peppers": (5, 10), # May to October
+        "Eggplants": (5, 10), # May to October
+        "Zucchini": (5, 8), # May to August
+        "Onions": (1, 4),   # January to April
+        "Garlic": (10, 4),  # October to April (overlapping year)
+        "Sweet Potatoes": (5, 9), # May to September
+        "Strawberries": (4, 6), # April to June
+        "Blueberries": (4, 7) # April to July
+    }
 
 # Adicione o estilo CSS
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #d3d3d3;
-    }
-    h1 {
-        color: #228B22;
-        font-family: 'Helvetica', sans-serif;
-        text-align: center;
-        font-weight: bold;
-        font-size: 3em;
-    }
-    .css-1cpxqw2 {
-        background-color: #e6ffe6;
-        color: #006400;
-        border: 1px solid #228B22;
-        border-radius: 10px;
-        font-family: 'Arial', sans-serif;
-        padding: 8px;
-    }
-    .stButton > button {
-        background-color: #228B22;
-        color: white;
-        border-radius: 10px;
-        font-size: 1.2em;
-        font-weight: bold;
-        padding: 10px 20px;
-    }
-    h2 {
-        color: #006400;
-        font-family: 'Arial', sans-serif;
-    }
-    .alert {
-        color: #FF4500; /* Red color for alerts */
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 # Função para a landing page
 def landing_page():
@@ -189,55 +135,41 @@ def dashboard():
             st.error("Location not found. Please try another search.")
 
     # Define as estações de cultivo
-    growing_seasons = {
-        "Beans": (3, 9),   # March to September
-        "Corn": (4, 8),    # April to August
-        "Wheat": (9, 6),   # September to June (overlapping year)
-        "Rice": (1, 4),    # January to April
-        "Soybeans": (5, 9),# May to September
-        "Potatoes": (3, 6),# March to June
-        "Tomatoes": (5, 10),# May to October
-        "Cabbage": (2, 5), # February to May
-        "Carrots": (3, 7), # March to July
-        "Pumpkins": (6, 10),# June to October
-        "Lettuce": (3, 7), # March to July
-        "Peas": (2, 6),    # February to June
-        "Radishes": (4, 6),# April to June
-        "Bell Peppers": (5, 10), # May to October
-        "Eggplants": (5, 10), # May to October
-        "Zucchini": (5, 8), # May to August
-        "Onions": (1, 4),   # January to April
-        "Garlic": (10, 4),  # October to April (overlapping year)
-        "Sweet Potatoes": (5, 9), # May to September
-        "Strawberries": (4, 6), # April to June
-        "Blueberries": (4, 7) # April to July
-    }
+    
 
+    # Selecionar a cultura a partir do banco de dados
     # Selecionar a cultura a partir do banco de dados
     st.subheader("Select a Crop")
     with st.expander("Selecter"):
-        crops = get_crops()
+        crops = get_crops()  # Fetches crops from the database
         crop_names = [crop[1] for crop in crops]  # Get the crop names
 
         selected_crop = st.selectbox("Choose a crop:", crop_names)
 
         if selected_crop:
             # Alert the user about the selected crop
-            crop_info = [crop for crop in crops if crop[1] == selected_crop][0]
-            st.success(f"You selected: {crop_info[1]}. Plant Date: {crop_info[2]}, Harvest Date: {crop_info[3]}.")
+            crop_info = next((crop for crop in crops if crop[1] == selected_crop), None)
+            
+            if crop_info:
+                st.success(f"You selected: {crop_info[1]}. Plant Date: {crop_info[2]}, Harvest Date: {crop_info[3]}.")
 
-            # Retrieve planting and harvest dates
-            plant_date = datetime.strptime(crop_info[2], "%Y-%m-%d")  # Convert string to datetime
-            harvest_date = datetime.strptime(crop_info[3], "%Y-%m-%d")
+                # Retrieve planting and harvest dates
+                plant_date = datetime.strptime(crop_info[2], "%Y-%m-%d")  # Convert string to datetime
+                harvest_date = datetime.strptime(crop_info[3], "%Y-%m-%d")
 
-            # Check if it's a suitable time to plant the selected crop
-            crop_start_season, crop_end_season = growing_seasons[selected_crop]
-            current_month = datetime.now().month
+                cleaned_crop_name = re.sub(r'\d+', '', selected_crop).strip()
 
-            if crop_start_season <= current_month <= crop_end_season:
-                st.success(f"It is a suitable time to plant {selected_crop}.")
+                # Now access the growing seasons using the cleaned crop name
+                crop_start_season, crop_end_season = growing_seasons.get(cleaned_crop_name, (None, None))
+                plant_date_ = plant_date.month
+                harvest_date_ = harvest_date.month
+
+                if plant_date_ >= crop_start_season and harvest_date_ <= crop_end_season:
+                    st.success(f"It is a suitable time to plant {selected_crop}.")
+                else:
+                    st.warning(f"It is NOT a suitable time to plant {selected_crop}.")
             else:
-                st.warning(f"It is NOT a suitable time to plant {selected_crop}.")
+                st.error("Crop information could not be found.")
 
         # Usuário seleciona os parâmetros meteorológicos que deseja
         parameters = st.multiselect(
@@ -261,36 +193,7 @@ def dashboard():
 
     # Funcionalidade de gestão de culturas
     # Funcionalidade de gestão de culturas
-    st.subheader("Crop Management")
-    with st.expander("Manager"):
-        crops_name = []
-        for x in growing_seasons:
-            crops_name.append(x)
-        crop_name = st.selectbox("Crop Name", crops_name ,help="Enter the name of the crop you want to register.")
-        plant_date_input = st.date_input("Planting Date", help="Select the date when you plan to plant the crop.")
-        expected_harvest_date = st.date_input("Expected Harvest Date", value=plant_date_input + timedelta(days=120), help="Estimated date of harvest.")
-
-        # Check if the planting date is in the future
-        if st.button("Register Crop"):
-            today = datetime.today().date()  # Get today's date
-
-            # Display error if planting date is in the future
-            if expected_harvest_date > today:
-                st.error("The harvest date cannot be in the future. Please select a valid date.")
-            elif not crop_name:
-                st.error("Please enter a valid crop name.")
-            else:
-                # Register the crop if all validations pass
-                register_crop(crop_name, plant_date_input, expected_harvest_date)
-                st.success(f"Crop '{crop_name}' registered with planting date {plant_date_input} and expected harvest date {expected_harvest_date}.")
-            # Exibir todas as culturas registradas
-            st.subheader("Registered Crops")
-            crops = get_crops()
-            if crops:
-                crops_df = pd.DataFrame(crops, columns=["ID", "Name", "Plant Date", "Harvest Date"])
-                st.write(crops_df)
-            else:
-                st.write("No crops registered yet.")
+   
 
     # Pega os parâmetros da API baseados na seleção do usuário
     selected_params = [parameter_map[param] for param in parameters]
@@ -395,7 +298,7 @@ def dashboard():
 
 # Controla o estado da página
 if 'page' not in st.session_state:
-    st.session_state['page'] = 'landing'
+    st.session_state['page'] = 'dashboard'
 
 # Renderiza a página baseada no estado
 if st.session_state['page'] == 'landing':
